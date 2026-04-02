@@ -11,7 +11,7 @@ MOTORS_ARE_ACTIVATED = False
 
 def activate_motors(direction):
     """Activate motors according to direction."""
-    global MOTORS_ARE_ACTIVATED
+    global MOTORS_ARE_ACTIVATED, MOTORS
     if MOTORS_ARE_ACTIVATED:
         throw_an_error(
             message="motors were already activated!"
@@ -27,7 +27,7 @@ def activate_motors(direction):
 
 def stop_motors():
     """Stop motors according to direction."""
-    global MOTORS_ARE_ACTIVATED
+    global MOTORS_ARE_ACTIVATED, MOTORS
     if not MOTORS_ARE_ACTIVATED:
         throw_an_error(
             message="motors weren't activated yet!"
@@ -69,19 +69,24 @@ def complete_shutdown():
 
 def on_button_pressed_a():
     """roof opening? idk"""
-    # I don't think it's a proper way of doing it.
-    side_switch = None
+    side_switch = get_current_switch_value(DigitalPin.P1)
+    # 0 means pressed.
     is_opened = (side_switch == 0)
-    open_the_roof(light_level=None, roof_is_opened=is_opened)
+    open_the_roof(
+        light_level=get_current_light_level(),
+        roof_is_opened=is_opened
+    )
 input.on_button_pressed(Button.A, on_button_pressed_a)
 
 
 def on_button_pressed_b():
     """roof closing?"""
-    middle_switch = None
+    middle_switch = get_current_switch_value(DigitalPin.P0)
     is_closed = (middle_switch == 0)
-    # I don't think it's a proper way of doing it.
-    close_the_roof(light_level=None, roof_is_closed=is_closed)
+    close_the_roof(
+        light_level=get_current_light_level(),
+        roof_is_closed=is_closed
+    )
 input.on_button_pressed(Button.B, on_button_pressed_b)
 
 
@@ -96,14 +101,10 @@ def open_the_roof(roof_is_opened, light_level):
 
     Opening the roof till it'll reach the side switch.
     """
-    # define our global variable so we could
-    # access its value and change it from within
-    # this method
     global MOTORS_ARE_ACTIVATED
 
-    # if the roof is already opened or closed
-    # we need to deactivate our motors and
-    # display current level of light.
+    # if roof is opened we need to deactivate
+    # the motors and display current level of light.
     global MOTORS_ARE_ACTIVATED
     if roof_is_opened:
         if MOTORS_ARE_ACTIVATED:
@@ -117,8 +118,10 @@ def open_the_roof(roof_is_opened, light_level):
         direction=Kitronik_Robotics_Board.MotorDirection.FORWARD
     )
 
-    # make a sound.
+    # additional stuff.
+    display_info(info="OPENING")
     play_music()
+
 
 def close_the_roof(roof_is_closed, light_level):
     """Calling this method when the light
@@ -126,14 +129,10 @@ def close_the_roof(roof_is_closed, light_level):
 
     Closing the roof till it will reach a limit switch.
     """
-    # define our global variable so we could
-    # access its value and change it from within
-    # this method
     global MOTORS_ARE_ACTIVATED
 
-    # if the roof is already opened or closed
-    # we need to deactivate our motors and
-    # display current level of light.
+    # if roof is closed we need to deactivate
+    # the motors and display current level of light.
     if roof_is_closed:
         if MOTORS_ARE_ACTIVATED:
             stop_motors()
@@ -142,23 +141,33 @@ def close_the_roof(roof_is_closed, light_level):
 
     # if the roof is still somewhere in the middle
     # then we have to make sure our motors are active.
-    activate_motors(direction=Kitronik_Robotics_Board.MotorDirection.REVERSE)
+    activate_motors(
+        direction=Kitronik_Robotics_Board.MotorDirection.REVERSE
+    )
 
-    # make a sound.
+    # additional stuff.
+    display_info(info="CLOSING")
     play_music()
+
+
+def get_current_switch_value(switch_pin):
+    return int(pins.digital_read_pin(switch_pin))
+
+
+def get_current_light_level():
+    return int(input.light_level())
 
 
 def on_forever():
     # light level indicator
-    light_level = int(input.light_level())
+    light_level = get_current_light_level()
 
     # two limit switches.
     # for now, I don't know how to describe
     # them in the code.
-    middle_switch = None
-    side_switch = None
+    middle_switch = get_current_switch_value(DigitalPin.P0)
+    side_switch = get_current_switch_value(DigitalPin.P1)
 
-    # bla bla bla
     if light_level > LIGHT_THRESHOLD:
         # checking whether side switch is pressed.
         roof_is_opened = (side_switch == 0 and middle_switch != 0)
@@ -179,6 +188,6 @@ def on_forever():
         )
 
     # give me a break
-    # sleep(59)
+    basic.pause(59)
 
 basic.forever(on_forever)
